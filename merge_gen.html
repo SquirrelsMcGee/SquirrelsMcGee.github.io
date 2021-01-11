@@ -1,0 +1,282 @@
+<html>
+
+<style>
+label {
+	width: 100px !important;
+	display: inline-block;
+}
+</style>
+
+
+<body>
+
+<form id="form">
+
+	<fieldset id="config">
+		<legend>Configuration:</legend>
+		<label for="tableName">Table Name:</label><input type="text" id="tableName" value=""><br>
+		<label for="size">Columns:</label><input type="number" id="size" min="0" name="size" value="0"><br>
+		
+	</fieldset>
+	
+	<br>
+	
+	<fieldset id="conditions">
+		<legend>Conditions:</legend>
+		<label for="cond1">Condition</label>
+			<input type="text" id="cond1" value="">
+			
+			<select name="condOperator" id="condOperator">
+				<option selected="selected" value="=">Equals</option>
+				<option value="!=">Does not Equal</option>
+				<option value=">">Is Greater Than</option>
+				<option value="<">Is Less Than</option>
+				<option value=">=">Is Greater Than or Equal To</option>
+				<option value="<=">Is Less Than or Equal To</option>
+				
+				<option value="LIKE">Is Like</option>
+				<option value="NOT LIKE">Is Not Like</option>
+			</select>
+			
+			<input type="text" id="cond2" value="">
+			<br>
+	</fieldset>
+	
+	<br>
+	
+	<fieldset id="input">
+		<legend>Columns:</legend>
+
+	</fieldset>
+	
+	<br>
+	
+	<input id="submit" type="submit" value="Generate"></input>
+	<input id="clear" type="submit" value="Clear"></input>
+	
+	
+	
+	<fieldset id="output">
+		<legend>Output:</legend>
+		<div style="white-space: pre;" id="outputText"></div>
+	</fieldset>
+	
+	<br>
+	<input id="copy" type="submit" value="Copy"></input>
+</form>
+
+</body>
+
+
+
+</html>
+
+
+<script>
+
+const form = document.querySelector("#form");
+const size = document.querySelector("#size");
+const fieldset = document.querySelector("#input");
+
+const submit = document.querySelector("#submit");
+const clear = document.querySelector("#clear");
+const copy = document.querySelector("#copy");
+
+const tableName = document.querySelector("#tableName");
+const cond1 = document.querySelector("#cond1");
+const cond2 = document.querySelector("#cond2");
+const condOperator = document.querySelector("#condOperator");
+
+var columnData = [];
+
+const legend = '<legend>Columns:</legend>';
+const colTemplate = '<input class="columnName" type="text" value="{COLUMNNAME}">';
+const dataTemplate = '<input class="data" type="text" value="{DATA}">';
+const typeTemplate = '<input class="type" style="visibility:hidden;" type="text" value="{TYPE}">';
+
+
+const output = document.querySelector("#outputText");
+
+form.addEventListener("submit", (e) => {
+	e.preventDefault();
+	//console.log(MergeStatementGenerator("TEST", columnData, ["testcond", "testcond2"]));
+});
+
+var res;
+
+submit.addEventListener("click", (e) => {
+	e.preventDefault();
+	updateColumnData();
+	res = (MergeStatementGenerator(tableName.value, columnData, [cond1.value, cond2.value, condOperator.value]));
+	console.log(res);
+	output.innerHTML = res.replaceAll("\n", "<br>");
+});
+
+size.addEventListener("wheel", (e) => {
+	e.preventDefault();
+	
+	if (e.deltaY > 0) size.value = parseInt(size.value) - 1;
+	if (e.deltaY < 0) size.value = parseInt(size.value) + 1;
+	
+	if (parseInt(size.value) < 0) size.value = 0;
+	
+	generateColumns(parseInt(size.value));
+});
+
+size.addEventListener("change", (e) => {
+	e.preventDefault();
+	
+	if (parseInt(size.value) < 0) size.value = 0;
+	
+	generateColumns(parseInt(size.value));
+});
+
+clear.addEventListener("click", (e) => {
+	e.preventDefault();
+	clearColumnData();
+});
+
+copy.addEventListener("click", (e) => {
+	e.preventDefault();
+	updateColumnData();
+	res = (MergeStatementGenerator(tableName.value, columnData, [cond1.value, cond2.value, condOperator.value]));
+	copyToClipboard(res);
+});
+
+
+
+function generateColumns(n) {
+	
+	updateColumnData();
+	fieldset.innerHTML = legend;
+	for (let i = 0; i < n; i++) {
+		
+		let columnName = "";
+		let data = "";
+		let type = "";
+		
+		if (columnData[i] != null) {
+			columnName = columnData[i][0] != null ? columnData[i][0] : "";
+			data = columnData[i][1] != null ? columnData[i][1] : "";
+			type = columnData[i][2] != null ? columnData[i][2] : "";
+		}
+		fieldset.innerHTML += colTemplate.replace("{COLUMNNAME}", columnName);
+		fieldset.innerHTML += dataTemplate.replace("{DATA}", data);
+		fieldset.innerHTML += typeTemplate.replace("{TYPE}", type);
+		fieldset.innerHTML += "<br>";
+		
+		let offset = -4;
+		fieldset.children[fieldset.children.length + offset].value = columnName;
+		fieldset.children[fieldset.children.length + ++offset].value = data;
+		fieldset.children[fieldset.children.length + ++offset].value = type;
+		
+	}
+	
+	//updateColumnData();
+}
+
+function updateColumnData() {
+	var columns = fieldset.getElementsByClassName("columnName");
+	var datas = fieldset.getElementsByClassName("data");
+	var types = fieldset.getElementsByClassName("type");
+	
+	if (columns.length != datas.length) {
+		console.error("Something went horribly wrong");
+		return;
+	}
+	
+	for (let i = 0; i < columns.length; i++) {
+		// update existing data
+		
+		if (columnData[i] != null) {
+			columnData[i] = [columns[i].value, datas[i].value, types[i].value];
+		}
+		
+		// create new data
+		if (columnData[i] == null) {
+			if (columns[i].value != "") columnData[i] = [columns[i].value, datas[i].value, types[i].value];
+		}
+	}
+	
+}
+
+function clearColumnData() {
+	if (window.confirm("Clear all entries?")) {
+		columnData = [];
+		fieldset.innerHTML = legend;
+		size.value = 0;
+	}
+	else {
+		// do nothing
+	}
+}
+
+function copyToClipboard(text) {
+    var dummy = document.createElement("textarea");
+    // to avoid breaking orgain page when copying more words
+    // cant copy when adding below this code
+    // dummy.style.display = 'none'
+    document.body.appendChild(dummy);
+    //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+    dummy.value = text;
+    dummy.select();
+    document.execCommand("copy");
+    document.body.removeChild(dummy);
+}
+
+
+function MergeStatementGenerator(tableName, source, condition) {
+	// string, Array<Array[2]>, string
+	
+	var usingSet = "";
+	var columnNames = "";
+	var updateSet = "";
+	var valueSet = "";
+	
+	for (let i = 0; i < Math.min(source.length, size.value); i++) {
+	
+		if(source[i] == null || source[i] == undefined) continue;
+	
+		usingSet += `${source[i][1]}		[${source[i][0]}]`;
+		if (i < source.length-1) usingSet += ',';
+		usingSet += "\n			";
+	
+		updateSet += `dst.[${source[i][0]}]			= src.[${source[i][0]}]`;
+		if (i < source.length-1) updateSet += ',';
+		updateSet += "\n			";
+		
+		columnNames += `[${source[i][0]}]`;
+		if (i < source.length-1) columnNames += ',';
+		columnNames += "\n			";
+		
+		valueSet += `src.[${source[i][0]}]`;
+		if (i < source.length-1) valueSet += ',';
+		valueSet += "\n			";
+	}
+
+	
+	
+	var statement = 
+	`MERGE INTO [dbo].[${tableName}] AS dst
+	USING (SELECT 
+			${usingSet}
+	) AS src
+	ON (src.[${condition[0]}] ${condition[2]} dst.[${condition[1] != null && condition[1] != "" ? condition[1] : condition[0]}])
+	WHEN MATCHED THEN
+		UPDATE SET
+			${updateSet}
+	WHEN NOT MATCHED THEN 
+		INSERT (
+			${columnNames}
+		) VALUES (
+			${valueSet}
+		);
+	GO
+	`;
+	return statement;
+}
+
+
+
+</script>
+
